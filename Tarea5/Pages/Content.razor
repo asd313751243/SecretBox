@@ -1,0 +1,148 @@
+﻿@page "/content/{id:int}"
+@using Tarea5.Data
+@inject UserServices userServices
+@inject SecretServices secretServices
+@inject HttpClient Http
+
+
+@if (state == "on")
+{
+    <div class="float-right">
+        <img src="@image" class="rounded">
+        <h6>@_data.Nombres</h6>
+    </div>
+    <div class="container">
+        <div class="row-5">
+            <div class="col-10 bg-light m-2 justify-content-start">
+                <div class="p-3 mb-3 bg-info text-white text-center">New Secret</div>
+                <form @onsubmit="AddSecret">
+                    <div class=" form-group">
+                        <b>Titulo</b>
+                        <input type="text" class="form-control" required @bind="_secret.Titulo" />
+                    </div>
+                    <div class=" form-group">
+                        <b>Descripcion</b>
+                        <input type="text" class="form-control" required @bind="_secret.Descripcion" />
+                    </div>
+                    <div class=" form-group">
+                        <b>Valor Monetario</b>
+                        <input type="number" step="0.01" class="form-control" required @bind="_secret.Valor_monetario" />
+                    </div>
+                    <div class=" form-group">
+                        <b>Fecha</b>
+                        <input type="date" class="form-control" required @bind="_secret.Fecha" />
+                    </div>
+                    <div class=" form-group">
+                        <b>Lugar</b>
+                        <input type="text" class="form-control" required @bind="_secret.Lugar" />
+                    </div>
+                    <div class=" form-group">
+                        <b>Latitud</b>
+                        <input type="number" step="0.00000000001" class="form-control" required @bind="_secret.Lat" />
+                    </div>
+                    <div class=" form-group">
+                        <b>Longitud</b>
+                        <input type="number" step="0.00000000001" class="form-control" required @bind="_secret.Lng" />
+                    </div>
+                    <div class="text-center p-3 mb-3">
+                        <input type="submit" class="btn btn-primary" value="New Secret" />
+                        <br />
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .card {
+            float: left;
+            margin: 5px;
+            width: 50px;
+            height: 500px;
+            background-color: #0cbaba;
+            background-image: linear-gradient(315deg, #0cbaba 0%, #380036 74%);
+        }
+    </style>
+
+    @foreach (var s in user_secrets)
+    {
+        <div class="card" style="width: 18rem;">
+            <div class="card-body text-white">
+                <h5 class="card-title">@s.Titulo</h5>
+                <h6 class="card-subtitle mb-2 text-muted">Descripcion</h6>
+                <p class="card-text">@s.Descripcion</p>
+                <h6 class="card-subtitle mb-2 text-muted">Valor Monetario</h6>
+                <p class="card-text">@s.Valor_monetario</p>
+                <h6 class="card-subtitle mb-2 text-muted">Fecha</h6>
+                <p class="card-text">@s.Fecha</p>
+                <h6 class="card-subtitle mb-2 text-muted">Lugar</h6>
+                <p class="card-text">@s.Lugar</p>
+                <h6 class="card-subtitle mb-2 text-muted">Latitud</h6>
+                <p class="card-text">@s.Lat</p>
+                <h6 class="card-subtitle mb-2 text-muted">Longitud</h6>
+                <p class="card-text">@s.Lng</p>
+            </div>
+        </div>
+    }
+}
+else if (state == null)
+{
+    <center><h1>Loading...</h1></center>
+}
+else if (state == "off")
+{
+    <center>
+        <h3>Debes hacer el login antes de entrar a esta pagina</h3>
+        <NavLink class="nav-link" href="/">
+            <a>Back to Log In</a>
+        </NavLink>
+    </center>
+}
+
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private List<User> _users = new List<User>();
+    private List<Secret> _secrets = new List<Secret>();
+    private List<Secret> user_secrets = new List<Secret>();
+    private User _user = new User();
+    private Secret _secret = new Secret();
+    private ApiData _data = new ApiData();
+    private string image, state;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = await userServices.GetUsersAsync();
+        _user = _users.FirstOrDefault(p => p.UserId == id);
+        if(_user != null)
+        {
+            _data = await Http.GetJsonAsync<ApiData>("https://api.adamix.net/apec/cedula/" + _user.Cedula);
+            image = _data.foto;
+            await RefreshSecrets();
+            state = _user.State;
+            _user.State = "off";
+            await userServices.UpdateUserAsync(_user);
+        }
+        else
+        {
+            state = "off";
+        }
+    }
+
+    private async Task RefreshSecrets()
+    {
+        _secrets = await secretServices.GetSecretsAsync();
+        user_secrets = _secrets.Where(p => p.UserId == id).ToList();
+        _secret = new Secret();
+    }
+
+    private async Task AddSecret()
+    {
+        _user._Secrets.Add(_secret);
+        await userServices.UpdateUserAsync(_user);
+        await RefreshSecrets();
+    }
+
+}
